@@ -54,6 +54,7 @@ namespace PeripheralCharge
         private readonly Control dispatcher = new Control();
         private readonly Timer timer = new Timer { Interval = IntervalSeconds * 1000 };
         private readonly BackgroundWorker worker = new BackgroundWorker();
+        private readonly System.Threading.RegisteredWaitHandle showListener;
         private readonly ContextMenuStrip menu = new ContextMenuStrip();
         private readonly NotifyIcon tray;
         private readonly ToolStripItem refresh;
@@ -64,7 +65,7 @@ namespace PeripheralCharge
         private int? iconLevel;
         private bool closing;
 
-        public Tray()
+        public Tray(System.Threading.WaitHandle showRequest, bool openDetails)
         {
             dispatcher.CreateControl();
             menu.Items.Add("查看电量", null, delegate { OpenDetails(); });
@@ -80,6 +81,12 @@ namespace PeripheralCharge
             timer.Start();
             // Start on the message loop, after the WinForms synchronization context is installed.
             dispatcher.BeginInvoke(new Action(Refresh));
+            showListener = System.Threading.ThreadPool.RegisterWaitForSingleObject(showRequest, delegate
+            {
+                try { dispatcher.BeginInvoke(new Action(OpenDetails)); }
+                catch (InvalidOperationException) { /* The message loop has already exited. */ }
+            }, null, -1, false);
+            if (openDetails) dispatcher.BeginInvoke(new Action(OpenDetails));
         }
 
         private void Refresh()
@@ -113,6 +120,7 @@ namespace PeripheralCharge
 
         private void OpenDetails()
         {
+            if (closing) return;
             if (details == null)
             {
                 details = new DetailsForm(Refresh);
@@ -139,6 +147,7 @@ namespace PeripheralCharge
             if (disposing)
             {
                 closing = true;
+                showListener.Unregister(null);
                 worker.RunWorkerCompleted -= OnResult;
                 timer.Dispose();
                 tray.Dispose();

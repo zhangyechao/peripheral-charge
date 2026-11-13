@@ -19,14 +19,16 @@ namespace PeripheralCharge
         [STAThread]
         private static int Main(string[] args)
         {
-            if (args.Length > 0) return Command(args);
+            bool openDetails = args.Length == 1 && args[0] == "--details";
+            if (args.Length > 0 && !openDetails) return Command(args);
             bool first;
+            using (var showRequest = new EventWaitHandle(false, EventResetMode.AutoReset, @"Local\PeripheralCharge.ShowDetails"))
             using (var instance = new Mutex(true, @"Local\PeripheralCharge.Tray", out first))
             {
-                if (!first) return 0;
+                if (!first) { showRequest.Set(); return 0; }
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
-                using (var app = new Tray()) Application.Run(app);
+                using (var app = new Tray(showRequest, openDetails)) Application.Run(app);
             }
             return 0;
         }
@@ -56,7 +58,7 @@ namespace PeripheralCharge
                     foreach (DeviceStatus d in s.Devices) Console.WriteLine("{0}  {1}  {2}", d.Id, d.Name, d.Battery.Display);
                     return s.Lowest.HasValue ? 0 : 2;
                 }
-                Console.WriteLine("PeripheralCharge.exe [--status | --list | --help]");
+                Console.WriteLine("PeripheralCharge.exe [--details | --status | --list | --help]");
                 return args.Length == 1 && args[0] == "--help" ? 0 : 64;
             }
             catch (Exception ex)

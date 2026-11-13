@@ -6,7 +6,7 @@
 
 1. 从 [GitHub Releases](https://github.com/zhangyechao/peripheral-charge/releases/latest) 下载 `PeripheralCharge.exe`。适用于 Windows 10 / 11 和 .NET Framework 4.7.2 或更高版本。
 2. 插入接收器，双击程序，在任务栏右下角或「显示隐藏的图标」里找到电池图标。
-3. 图标显示当前有效读数中的最低值。单击图标查看每台设备，右键可以立即刷新或退出。关闭详情窗口后仍会在托盘更新。
+3. 图标显示当前有效读数中的最低值。单击图标或再次双击 EXE 可以查看每台设备，右键可以立即刷新或退出。关闭详情窗口后仍会在托盘更新。
 
 每 60 秒读取一次。读数降到 15% 或更低时，程序会在当前会话提醒一次。电量回升至 20% 或设备报告充电后，下次进入低电量区间可再次提醒。通知的实际显示受 Windows 通知设置影响。
 
@@ -30,7 +30,7 @@
 .\dist\PeripheralCharge.exe
 ```
 
-命令行也可以单次查询。以下写法会在 PowerShell 等待 GUI 子系统程序结束后打印 UTF-8 输出。
+运行 `PeripheralCharge.exe --details` 可直接打开详情窗口。命令行也可以单次查询。以下写法会在 PowerShell 等待 GUI 子系统程序结束后打印 UTF-8 输出。
 
 ```powershell
 .\dist\PeripheralCharge.exe --status | Out-Host
