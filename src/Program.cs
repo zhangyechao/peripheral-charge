@@ -9,8 +9,8 @@ using System.Windows.Forms;
 [assembly: AssemblyTitle("余电 · Peripheral Charge")]
 [assembly: AssemblyDescription("2.4 GHz 外设电量托盘")]
 [assembly: AssemblyProduct("Peripheral Charge")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyVersion("0.2.1.0")]
+[assembly: AssemblyFileVersion("0.2.1.0")]
 
 namespace PeripheralCharge
 {

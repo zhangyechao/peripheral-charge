@@ -61,7 +61,7 @@ namespace PeripheralCharge
             };
         }
 
-        public void Display(Snapshot snapshot)
+        public void Display(Snapshot snapshot, int nextPollMinutes)
         {
             list.BeginUpdate();
             try
@@ -78,7 +78,7 @@ namespace PeripheralCharge
             finally { list.EndUpdate(); }
             empty.Text = snapshot.EmptyMessage;
             empty.Visible = snapshot.Devices.Count == 0;
-            updated.Text = "上次刷新 " + snapshot.Checked.ToString("HH:mm:ss") + "   ·   每 " + Tray.IntervalSeconds + " 秒更新";
+            updated.Text = "上次刷新 " + snapshot.Checked.ToString("HH:mm:ss") + "   ·   刷新间隔 " + nextPollMinutes + " 分钟";
         }
 
         public void SetBusy(bool busy)

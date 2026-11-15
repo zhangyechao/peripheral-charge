@@ -50,9 +50,9 @@ namespace PeripheralCharge
 
     internal sealed class Tray : ApplicationContext
     {
-        internal const int IntervalSeconds = 60;
+        private const int RegularPollMinutes = 10;
         private readonly Control dispatcher = new Control();
-        private readonly Timer timer = new Timer { Interval = IntervalSeconds * 1000 };
+        private readonly Timer timer = new Timer();
         private readonly BackgroundWorker worker = new BackgroundWorker();
         private readonly System.Threading.RegisteredWaitHandle showListener;
         private readonly ContextMenuStrip menu = new ContextMenuStrip();
@@ -61,6 +61,7 @@ namespace PeripheralCharge
         private readonly BatteryAlert alerts = new BatteryAlert();
         private DetailsForm details;
         private Snapshot snapshot;
+        private int nextPollMinutes;
         private bool closing;
 
         public Tray(System.Threading.WaitHandle showRequest, bool openDetails)
@@ -74,7 +75,6 @@ namespace PeripheralCharge
             worker.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = Monitor.Scan(); };
             worker.RunWorkerCompleted += OnResult;
             timer.Tick += delegate { Refresh(); };
-            timer.Start();
             // Start on the message loop, after the WinForms synchronization context is installed.
             dispatcher.BeginInvoke(new Action(Refresh));
             showListener = System.Threading.ThreadPool.RegisterWaitForSingleObject(showRequest, delegate
@@ -88,6 +88,7 @@ namespace PeripheralCharge
         private void Refresh()
         {
             if (closing || worker.IsBusy) return;
+            timer.Stop();
             refresh.Enabled = false;
             if (details != null) details.SetBusy(true);
             worker.RunWorkerAsync();
@@ -97,12 +98,22 @@ namespace PeripheralCharge
         {
             if (closing) return;
             snapshot = e.Error == null ? (Snapshot)e.Result : new Snapshot(new List<DeviceStatus>(), true);
+            nextPollMinutes = NextPollMinutes(nextPollMinutes, snapshot);
             tray.Update(DeviceBadge.For(snapshot));
             refresh.Enabled = true;
-            if (details != null) { details.Display(snapshot); details.SetBusy(false); }
+            if (details != null) { details.Display(snapshot, nextPollMinutes); details.SetBusy(false); }
             var low = snapshot.Devices.Where(d => alerts.ShouldNotify(d.Key, d.Battery)).ToList();
             if (low.Count != 0)
                 tray.Notify(DeviceBadge.IdFor(low[0].Key), string.Join("，", low.Select(d => d.Name + " " + d.Battery.Display)));
+            timer.Interval = (int)TimeSpan.FromMinutes(nextPollMinutes).TotalMilliseconds;
+            timer.Start();
+        }
+
+        internal static int NextPollMinutes(int previousMinutes, Snapshot result)
+        {
+            if (result.Lowest.HasValue) return RegularPollMinutes;
+            // Back off until the first reading. A later timeout keeps the regular interval.
+            return Math.Min(RegularPollMinutes, Math.Max(1, previousMinutes * 2));
         }
 
         private void OpenDetails()
@@ -113,7 +124,7 @@ namespace PeripheralCharge
                 details = new DetailsForm(Refresh);
                 details.FormClosed += delegate { details = null; };
             }
-            if (snapshot != null) details.Display(snapshot);
+            if (snapshot != null) details.Display(snapshot, nextPollMinutes);
             details.SetBusy(worker.IsBusy);
             if (details.WindowState == FormWindowState.Minimized) details.WindowState = FormWindowState.Normal;
             details.Show();

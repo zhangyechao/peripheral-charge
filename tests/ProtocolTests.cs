@@ -145,6 +145,25 @@ namespace PeripheralCharge
             Check("failed scan clears old numbers", failed.Id == idle.Id && !failed.Percent.HasValue && failed.Tooltip.Contains("扫描失败"));
         }
 
+        private static void Polling()
+        {
+            var devices = new List<DeviceStatus>();
+            var empty = new Snapshot(devices, false);
+            int interval = 0;
+            foreach (int expected in new[] { 1, 2, 4, 8, 10, 10 })
+            {
+                interval = Tray.NextPollMinutes(interval, empty);
+                Check("bounded startup retry at " + expected + " minutes", interval == expected);
+            }
+            devices.Add(new DeviceStatus("a", "A", "", new Reading(State.NoReply)));
+            Check("unresponsive receiver at startup", Tray.NextPollMinutes(0, empty) == 1);
+            devices.Add(new DeviceStatus("b", "B", "", new Reading(0, false)));
+            Check("one valid reading, including zero, starts ten minutes", Tray.NextPollMinutes(0, empty) == 10);
+            Check("successful retry ends startup polling", Tray.NextPollMinutes(2, empty) == 10);
+            devices.Clear();
+            Check("a later scan failure keeps ten minutes", Tray.NextPollMinutes(10, new Snapshot(devices, true)) == 10);
+        }
+
         private static void Icons()
         {
             foreach (int size in new[] { 16, 20, 24, 32 })
@@ -176,7 +195,7 @@ namespace PeripheralCharge
         {
             try
             {
-                Mouse(); Keyboards(); Identity(); Ganss(); Presentation(); Icons();
+                Mouse(); Keyboards(); Identity(); Ganss(); Presentation(); Polling(); Icons();
                 Console.WriteLine(passed + " checks passed.");
                 return 0;
             }
