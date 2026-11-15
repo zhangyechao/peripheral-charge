@@ -56,13 +56,11 @@ namespace PeripheralCharge
         private readonly BackgroundWorker worker = new BackgroundWorker();
         private readonly System.Threading.RegisteredWaitHandle showListener;
         private readonly ContextMenuStrip menu = new ContextMenuStrip();
-        private readonly NotifyIcon tray;
+        private readonly TaskbarIcons tray;
         private readonly ToolStripItem refresh;
         private readonly BatteryAlert alerts = new BatteryAlert();
         private DetailsForm details;
         private Snapshot snapshot;
-        private Icon icon;
-        private int? iconLevel;
         private bool closing;
 
         public Tray(System.Threading.WaitHandle showRequest, bool openDetails)
@@ -72,9 +70,7 @@ namespace PeripheralCharge
             refresh = menu.Items.Add("立即刷新", null, delegate { Refresh(); });
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add("退出", null, delegate { ExitThread(); });
-            icon = BatteryIcon.Draw(null);
-            tray = new NotifyIcon { Icon = icon, Text = "余电 · 正在读取", ContextMenuStrip = menu, Visible = true };
-            tray.MouseClick += delegate(object sender, MouseEventArgs e) { if (e.Button == MouseButtons.Left) OpenDetails(); };
+            tray = new TaskbarIcons(OpenDetails, menu);
             worker.DoWork += delegate(object sender, DoWorkEventArgs e) { e.Result = Monitor.Scan(); };
             worker.RunWorkerCompleted += OnResult;
             timer.Tick += delegate { Refresh(); };
@@ -101,21 +97,12 @@ namespace PeripheralCharge
         {
             if (closing) return;
             snapshot = e.Error == null ? (Snapshot)e.Result : new Snapshot(new List<DeviceStatus>(), true);
-            int? current = snapshot.Lowest;
-            if (current != iconLevel)
-            {
-                Icon previous = icon;
-                icon = BatteryIcon.Draw(current);
-                tray.Icon = icon;
-                iconLevel = current;
-                previous.Dispose();
-            }
-            tray.Text = snapshot.Tooltip();
+            tray.Update(DeviceBadge.For(snapshot));
             refresh.Enabled = true;
             if (details != null) { details.Display(snapshot); details.SetBusy(false); }
             var low = snapshot.Devices.Where(d => alerts.ShouldNotify(d.Key, d.Battery)).ToList();
             if (low.Count != 0)
-                tray.ShowBalloonTip(5000, "外设电量较低", string.Join("，", low.Select(d => d.Name + " " + d.Battery.Display)), ToolTipIcon.Warning);
+                tray.Notify(DeviceBadge.IdFor(low[0].Key), string.Join("，", low.Select(d => d.Name + " " + d.Battery.Display)));
         }
 
         private void OpenDetails()
@@ -137,7 +124,7 @@ namespace PeripheralCharge
         {
             closing = true;
             timer.Stop();
-            tray.Visible = false;
+            tray.Dispose();
             if (details != null) details.Close();
             base.ExitThreadCore();
         }
@@ -151,7 +138,6 @@ namespace PeripheralCharge
                 worker.RunWorkerCompleted -= OnResult;
                 timer.Dispose();
                 tray.Dispose();
-                icon.Dispose();
                 menu.Dispose();
                 worker.Dispose();
                 dispatcher.Dispose();

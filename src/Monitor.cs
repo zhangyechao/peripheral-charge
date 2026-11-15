@@ -36,20 +36,6 @@ namespace PeripheralCharge
             get { return ScanFailed ? "扫描失败，请重新刷新" : "未发现适配的接收器"; }
         }
 
-        public string Tooltip()
-        {
-            if (Devices.Count == 0) return "余电 · " + EmptyMessage;
-            var lines = new List<string>();
-            foreach (DeviceStatus d in Devices) lines.Add(d.Name + "  " + d.Battery.Display);
-            // .NET Framework NotifyIcon.Text accepts at most 63 UTF-16 code units.
-            for (int count = lines.Count; count > 0; count--)
-            {
-                string tip = string.Join("\n", lines.Take(count));
-                if (count < lines.Count) tip += "\n另有 " + (lines.Count - count) + " 台";
-                if (tip.Length <= 63) return tip;
-            }
-            return "余电 · " + lines.Count + " 台设备";
-        }
     }
 
     internal static class Monitor

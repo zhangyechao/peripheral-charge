@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 
 namespace PeripheralCharge
@@ -119,19 +120,63 @@ namespace PeripheralCharge
             Check("charging suppresses reminder", !alarm.ShouldNotify("A", new Reading(9, true)));
             var devices = new List<DeviceStatus>();
             var none = new Snapshot(devices, false);
-            Check("no fake zero when empty", none.Lowest == null && !none.Tooltip().Contains("0%"));
+            var idle = DeviceBadge.For(none).Single();
+            Check("empty receiver status", none.Lowest == null && idle.Percent == null && idle.Tooltip.Contains(none.EmptyMessage));
             devices.Add(new DeviceStatus("a", "测试键盘", "", new Reading(State.NoReply)));
-            Check("missing is shown", none.Lowest == null && none.Tooltip().Contains("无应答"));
+            var sleeping = DeviceBadge.For(none).Single();
+            Check("missing is shown", sleeping.Percent == null && sleeping.Tooltip.Contains("无应答") && sleeping.Id != idle.Id);
             for (int i = 0; i < 12; i++) devices.Add(new DeviceStatus(i.ToString(), "测试设备 " + i, "", new Reading(20 + i, false)));
-            Check("tooltip length and overflow", none.Tooltip().Length <= 63 && none.Tooltip().Contains("另有"));
+            var badges = DeviceBadge.For(none).ToList();
+            Check("one icon per receiver", badges.Count == 13 && badges.Select(b => b.Id).Distinct().Count() == 13);
+            Check("each number follows its receiver", badges.Skip(1).Select(b => b.Percent.Value).SequenceEqual(Enumerable.Range(20, 12)));
             Check("minimum ignores missing", none.Lowest == 20);
+            devices.Clear();
+            devices.Add(new DeviceStatus("A", "测试键盘 #2", "", new Reading(0, true)));
+            var awake = DeviceBadge.For(none).Single();
+            Check("receiver keeps its icon after wake or rename", awake.Id == sleeping.Id && awake.Percent == 0 && awake.Tooltip.Contains("0% · 充电中"));
+            devices.Add(new DeviceStatus("b", "测试键盘 #1", "", new Reading(100, false)));
+            var both = DeviceBadge.For(none).ToArray();
+            devices.Reverse();
+            Check("order does not change tray identity", both.Select(b => b.Id).Reverse().SequenceEqual(DeviceBadge.For(none).Select(b => b.Id)));
+            devices.RemoveAt(1);
+            Check("unplugged receiver disappears", DeviceBadge.For(none).Single().Id == both[1].Id);
+            devices.Clear();
+            var failed = DeviceBadge.For(new Snapshot(devices, true)).Single();
+            Check("failed scan clears old numbers", failed.Id == idle.Id && !failed.Percent.HasValue && failed.Tooltip.Contains("扫描失败"));
+        }
+
+        private static void Icons()
+        {
+            foreach (int size in new[] { 16, 20, 24, 32 })
+            {
+                var patterns = new HashSet<string>();
+                foreach (int? percent in new int?[] { null, 0, 1, 9, 10, 15, 16, 25, 75, 90, 99, 100 })
+                using (var image = BadgeIcon.Render(percent, size, false))
+                {
+                    var ink = new List<int>();
+                    for (int y = 0; y < size; y++)
+                        for (int x = 0; x < size; x++)
+                        {
+                            Color pixel = image.GetPixel(x, y);
+                            if (pixel.A > 200 && pixel.R > 180 && pixel.G > 180 && pixel.B > 180)
+                                ink.Add(y * size + x);
+                        }
+                    Check("legible distinct glyph at " + size + "px: " + percent,
+                        ink.Count >= size / 2 && patterns.Add(string.Join(",", ink)));
+                    Color bg = image.GetPixel(size / 2, 1);
+                    Check("threshold palette", !percent.HasValue ? Math.Abs(bg.R - bg.G) < 10 :
+                        percent <= 15 ? bg.R > bg.G : bg.G > bg.R);
+                }
+                using (var icon = BadgeIcon.Draw(100, size, true))
+                    Check("full-scale native high contrast icon", icon.Width == size && icon.Height == size);
+            }
         }
 
         public static int Main()
         {
             try
             {
-                Mouse(); Keyboards(); Identity(); Ganss(); Presentation();
+                Mouse(); Keyboards(); Identity(); Ganss(); Presentation(); Icons();
                 Console.WriteLine(passed + " checks passed.");
                 return 0;
             }

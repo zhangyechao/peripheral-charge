@@ -147,13 +147,14 @@ namespace PeripheralCharge
 
     internal sealed class BatteryAlert
     {
+        public const int LowPercent = 15;
         private readonly HashSet<string> sent = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         public bool ShouldNotify(string key, Reading reading)
         {
             if (!reading.Percent.HasValue) return false;
             if (reading.Charging || reading.Percent >= 20) sent.Remove(key);
-            return !reading.Charging && reading.Percent <= 15 && sent.Add(key);
+            return !reading.Charging && reading.Percent <= LowPercent && sent.Add(key);
         }
     }
 }

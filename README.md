@@ -1,12 +1,12 @@
 # 余电 · Peripheral Charge
 
-把 2.4 GHz 无线键鼠的电量放到 Windows 系统托盘里。鼠标悬停可看各设备的百分比，单击可看设备列表和上次刷新时间。C# 单文件程序，通过 Windows 自带的 HID 接口在本地运行。
+直接在 Windows 任务栏右下角看无线键鼠的电量。每个受支持的接收器各有一个数字图标，例如 `75` 和 `90` 表示两台设备分别剩余 75% 和 90%。鼠标悬停可看设备名和状态，单击可看全部设备和上次刷新时间。C# 单文件程序，通过 Windows 自带的 HID 接口在本地运行。
 
 ## 下载与使用
 
 1. 从 [GitHub Releases](https://github.com/zhangyechao/peripheral-charge/releases/latest) 下载 `PeripheralCharge.exe`。适用于 Windows 10 / 11 和 .NET Framework 4.7.2 或更高版本。
-2. 插入接收器，双击程序，在任务栏右下角或「显示隐藏的图标」里找到电池图标。
-3. 图标显示当前有效读数中的最低值。单击图标或再次双击 EXE 可以查看每台设备，右键可以立即刷新或退出。关闭详情窗口后仍会在托盘更新。
+2. 插入接收器，双击程序。若图标在时钟旁的 `^`（隐藏图标）里，展开后把想常看的图标逐个拖到时钟旁。以后从同一位置启动程序，Windows 可记住各接收器的位置。[Windows 任务栏使用说明](https://support.microsoft.com/en-us/windows/experience/personalization/customize-the-taskbar-in-windows)
+3. 绿底数字是电量百分比，15% 及以下转为红底。灰色横线 `–` 表示本轮没有有效读数，悬停可看具体原因。插拔接收器后，下一轮刷新会增减图标。右键任意图标可以立即刷新或退出，关闭详情窗口后仍会在托盘更新。
 
 每 60 秒读取一次。读数降到 15% 或更低时，程序会在当前会话提醒一次。电量回升至 20% 或设备报告充电后，下次进入低电量区间可再次提醒。通知的实际显示受 Windows 通知设置影响。
 
